@@ -340,7 +340,8 @@ export function MapView() {
       effect(() => {
         void settings.value.layers;
         void settings.value.aircraft;
-        if (map.isStyleLoaded()) applyVisibility(map);
+        // applyVisibility comprueba cada capa; isStyleLoaded() es false mientras cargan teselas.
+        applyVisibility(map);
       }),
       effect(() => {
         setData(map, 'radars', fc(allRadars.value.map((r) => pt(r.lon, r.lat, { id: r.id, kind: r.kind, icon: `radar-${r.kind}${r.maxspeed ? `-${r.maxspeed}` : ''}` }))));

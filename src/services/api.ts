@@ -45,15 +45,15 @@ const q = (o: Record<string, string | number | undefined>) =>
     .map(([k, v]) => `${k}=${encodeURIComponent(String(v))}`)
     .join('&');
 
-function matcherParams() {
+export function matcherParams() {
   const s = settings.value;
   const list = (v: string) => v.split(/[\s,;]+/).map((x) => x.trim()).filter(Boolean).join(',');
   return { regs: list(s.extraRegs), hex: list(s.extraHex), cs: list(s.extraCallsigns) };
 }
 
 export const api = {
-  async health(): Promise<{ ok: boolean; tokenRequired: boolean }> {
-    return (await request<{ ok: boolean; tokenRequired: boolean }>('/health', { timeoutMs: 8000 })).data!;
+  async health(): Promise<{ ok: boolean; tokenRequired: boolean; authorized?: boolean }> {
+    return (await request<{ ok: boolean; tokenRequired: boolean; authorized?: boolean }>('/health', { timeoutMs: 8000 })).data!;
   },
 
   /** Devuelve null si el servidor responde 304 (sin cambios). */

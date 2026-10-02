@@ -1,0 +1,13 @@
+# Uso en un servidor propio, NAS o Raspberry Pi:  docker compose up -d
+services:
+  radar-bot:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "8787:8787"
+    environment:
+      # Protege la API (la app te pedirá este token en Ajustes → Servidor).
+      APP_TOKEN: ${APP_TOKEN:-}
+      TZ: Europe/Madrid
+    volumes:
+      - ./data:/data

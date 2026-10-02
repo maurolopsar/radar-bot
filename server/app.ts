@@ -56,16 +56,20 @@ export function createApp(): Hono {
 
   api.use('*', cors());
   api.use('*', compress());
-  api.use('*', async (c, next) => {
+  const tokenOk = (c: Context) => {
     const token = process.env.APP_TOKEN;
-    if (token && c.req.method !== 'OPTIONS') {
-      const given = c.req.header('x-app-token') ?? c.req.query('token');
-      if (given !== token) return c.json({ error: 'Token incorrecto' }, 401);
-    }
+    return !token || (c.req.header('x-app-token') ?? c.req.query('token')) === token;
+  };
+
+  // Accesible sin token: indica a la app si debe pedirlo.
+  api.get('/health', (c) =>
+    c.json({ ok: true, time: new Date().toISOString(), tokenRequired: !!process.env.APP_TOKEN, authorized: tokenOk(c) }),
+  );
+
+  api.use('*', async (c, next) => {
+    if (c.req.method !== 'OPTIONS' && !tokenOk(c)) return c.json({ error: 'Token incorrecto' }, 401);
     await next();
   });
-
-  api.get('/health', (c) => c.json({ ok: true, time: new Date().toISOString(), tokenRequired: !!process.env.APP_TOKEN }));
 
   api.get('/radars', async (c) => {
     const ds = await getRadarDataset();

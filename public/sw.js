@@ -6,7 +6,7 @@ const TILES = `tiles-${VERSION}`;
 const MAX_TILES = 3000;
 
 self.addEventListener('install', (event) => {
-  event.waitUntil(caches.open(SHELL).then((c) => c.addAll(['/', '/manifest.webmanifest', '/icons/icon.svg'])).then(() => self.skipWaiting()));
+  event.waitUntil(caches.open(SHELL).then((c) => c.addAll(['./', './manifest.webmanifest', './icons/icon.svg'])).then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', (event) => {
@@ -32,7 +32,7 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(req.url);
 
   // API propia y datos en vivo: siempre red.
-  if (url.origin === self.location.origin && url.pathname.startsWith('/api/')) return;
+  if (url.origin === self.location.origin && url.pathname.includes('/api/')) return;
 
   // Teselas, estilos y fuentes del mapa: caché primero, red en segundo plano.
   if (TILE_HOSTS.some((h) => url.hostname.endsWith(h))) {
@@ -62,10 +62,10 @@ self.addEventListener('fetch', (event) => {
       fetch(req)
         .then((res) => {
           const copy = res.clone();
-          caches.open(SHELL).then((c) => c.put('/', copy));
+          caches.open(SHELL).then((c) => c.put('./', copy));
           return res;
         })
-        .catch(() => caches.match('/')),
+        .catch(() => caches.match('./')),
     );
     return;
   }

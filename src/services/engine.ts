@@ -431,14 +431,15 @@ export function alertRank(a: ActiveAlert): number {
   const close = a.stage === 'close';
   switch (a.kind) {
     case 'radar':
-      return close ? 0 : 1;
-    case 'aircraft':
-      return close ? 2 : 5;
+      return close ? 0 : 2;
     case 'event':
     case 'report':
-      return a.severity === 'danger' ? (close ? 2 : 3) : close ? 3 : 4;
+      if (a.severity === 'danger') return close ? 1 : 4;
+      return close ? 4 : 5;
+    case 'aircraft':
+      return close ? 3 : 6;
     default:
-      return 6;
+      return 7;
   }
 }
 

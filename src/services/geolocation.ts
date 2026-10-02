@@ -12,10 +12,6 @@ export function onFix(fn: Listener): () => void {
   return () => listeners.delete(fn);
 }
 
-let last: Position | null = null;
-let lastHeading: number | null = null;
-let smoothSpeed: number | null = null;
-
 interface RawFix {
   lat: number;
   lon: number;
@@ -26,34 +22,53 @@ interface RawFix {
   simulated?: boolean;
 }
 
-export function derive(raw: RawFix): Position {
-  let speed = raw.speed != null && Number.isFinite(raw.speed) && raw.speed >= 0 ? raw.speed : null;
-  let heading = raw.heading != null && Number.isFinite(raw.heading) && raw.heading >= 0 ? raw.heading : null;
-  if (last) {
-    const dt = (raw.time - last.time) / 1000;
-    const d = distanceM(last.lat, last.lon, raw.lat, raw.lon);
-    const significant = d > Math.max(4, raw.accuracy * 0.6);
-    if (speed == null && dt > 0.4 && dt < 30) speed = significant ? d / dt : 0;
-    if ((heading == null || (speed ?? 0) < 1.5) && significant) heading = bearingDeg(last.lat, last.lon, raw.lat, raw.lon);
-  }
-  if (heading != null && (speed ?? 0) >= 1) lastHeading = heading;
-  else heading = lastHeading;
-  if (speed != null) smoothSpeed = smoothSpeed == null ? speed : smoothSpeed * 0.35 + speed * 0.65;
-  const p: Position = {
-    lat: raw.lat,
-    lon: raw.lon,
-    speed: speed == null ? null : (smoothSpeed ?? speed),
-    heading,
-    accuracy: raw.accuracy,
-    time: raw.time,
-    simulated: raw.simulated,
+/**
+ * Crea un calculador de posición con estado: completa velocidad y rumbo a
+ * partir de fijos consecutivos cuando el dispositivo no los da (o están
+ * parados), y suaviza la velocidad.
+ */
+export function createDeriver() {
+  let last: Position | null = null;
+  let lastHeading: number | null = null;
+  let smoothSpeed: number | null = null;
+  return {
+    reset(): void {
+      last = null;
+      lastHeading = null;
+      smoothSpeed = null;
+    },
+    next(raw: RawFix): Position {
+      let speed = raw.speed != null && Number.isFinite(raw.speed) && raw.speed >= 0 ? raw.speed : null;
+      let heading = raw.heading != null && Number.isFinite(raw.heading) && raw.heading >= 0 ? raw.heading : null;
+      if (last) {
+        const dt = (raw.time - last.time) / 1000;
+        const d = distanceM(last.lat, last.lon, raw.lat, raw.lon);
+        const significant = d > Math.max(4, raw.accuracy * 0.6);
+        if (speed == null && dt > 0.4 && dt < 30) speed = significant ? d / dt : 0;
+        if ((heading == null || (speed ?? 0) < 1.5) && significant) heading = bearingDeg(last.lat, last.lon, raw.lat, raw.lon);
+      }
+      if (heading != null && (speed ?? 0) >= 1) lastHeading = heading;
+      else heading = lastHeading;
+      if (speed != null) smoothSpeed = smoothSpeed == null ? speed : smoothSpeed * 0.35 + speed * 0.65;
+      const p: Position = {
+        lat: raw.lat,
+        lon: raw.lon,
+        speed: speed == null ? null : (smoothSpeed ?? speed),
+        heading,
+        accuracy: raw.accuracy,
+        time: raw.time,
+        simulated: raw.simulated,
+      };
+      last = p;
+      return p;
+    },
   };
-  return p;
 }
 
+const deriver = createDeriver();
+
 function push(raw: RawFix): void {
-  const p = derive(raw);
-  last = p;
+  const p = deriver.next(raw);
   position.value = p;
   for (const l of listeners) {
     try {
@@ -153,9 +168,7 @@ function segmentAt(route: SimRoute, dist: number): number {
 export function startSim(route: SimRoute, factor = 1, onEnd?: () => void): void {
   stopSim();
   gpsState.value = 'sim';
-  last = null;
-  lastHeading = null;
-  smoothSpeed = null;
+  deriver.reset();
   const tick = () => {
     if (!sim || sim.paused) return;
     const seg = segmentAt(sim.route, sim.dist);
@@ -186,6 +199,6 @@ export function stopSim(): void {
   if (!sim) return;
   clearInterval(sim.timer);
   sim = null;
-  last = null;
+  deriver.reset();
   gpsState.value = watchId != null ? 'waiting' : 'off';
 }

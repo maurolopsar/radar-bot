@@ -23,7 +23,9 @@ import {
   reports,
   showToast,
 } from '../state/store';
-import { api } from './api';
+import { DEFAULT_DGT_MATCHER, fromReadsb, type ReadsbAircraft } from '../../shared/aircraft';
+import { api, matcherParams } from './api';
+import { onFix } from './geolocation';
 import { load, save } from './storage';
 import { updateWeather } from './weather';
 
@@ -93,6 +95,13 @@ async function refreshRadarsDirect(cause: Error): Promise<void> {
           })
         : Promise.reject(new Error('sin posición')),
     ]);
+    if (!p) {
+      // OSM se consulta por zona: se repite en cuanto haya posición.
+      const off = onFix(() => {
+        off();
+        void refreshRadars();
+      });
+    }
     const feedPart = feedRes.status === 'fulfilled' ? parseFeed(feedRes.value, todayInSpain()) : { radars: [], stretches: [] };
     const osmPart = osmRes.status === 'fulfilled' ? parseOverpassRadars(osmRes.value) : { radars: [], stretches: [] };
     if (!feedPart.radars.length && !osmPart.radars.length) throw cause;
@@ -193,8 +202,20 @@ async function every(name: string, intervalMs: number, moveM: number, fn: (lat: 
   }
 }
 
+let lastServerCheck = 0;
+
 function tick(): void {
   const s = settings.value;
+  // Sin servidor (p. ej. dormido en un plan gratuito): se reintenta cada minuto.
+  if (serverOk === false && Date.now() - lastServerCheck > 60_000) {
+    lastServerCheck = Date.now();
+    void checkServer(true).then((ok) => {
+      if (ok) {
+        showToast('Conectado al servidor');
+        void refreshRadars();
+      }
+    });
+  }
   if (serverOk !== false) {
     if (s.dgtIncidents || s.waze) {
       void every('events', 60_000, s.eventsRadiusKm * 300, async (lat, lon) => {
@@ -207,17 +228,25 @@ function tick(): void {
     if (s.aircraft) {
       void every('aircraft', s.aircraftPollS * 1000, 2000, async (lat, lon) => {
         // Se pide algo más que el radio de aviso para verlos venir en el mapa.
-        const r = await api.aircraft(lat, lon, Math.max(s.aircraftRangeKm * 1.5, 25));
-        aircraft.value = r.aircraft;
-        aircraftInfo.value = { provider: r.provider, error: r.error, fetchedAt: r.fetchedAt };
+        try {
+          const r = await api.aircraft(lat, lon, Math.max(s.aircraftRangeKm * 1.5, 25));
+          aircraft.value = r.aircraft;
+          aircraftInfo.value = { provider: r.provider, error: r.error, fetchedAt: r.fetchedAt };
+        } catch (err) {
+          aircraftInfo.value = { ...aircraftInfo.value, error: (err as Error).message };
+        }
       });
     } else if (aircraft.value.length) aircraft.value = [];
 
     if (s.aircraft && s.fleetTracking) {
       void every('fleet', 30_000, Infinity, async () => {
-        const r = await api.fleet();
-        fleet.value = r.aircraft;
-        fleetInfo.value = { provider: r.provider, error: r.error, fetchedAt: r.fetchedAt };
+        try {
+          const r = await api.fleet();
+          fleet.value = r.aircraft;
+          fleetInfo.value = { provider: r.provider, error: r.error, fetchedAt: r.fetchedAt };
+        } catch (err) {
+          fleetInfo.value = { ...fleetInfo.value, error: (err as Error).message };
+        }
       });
     }
 
@@ -233,6 +262,7 @@ function tick(): void {
     }
     void every('reports', 2 * 60_000, Infinity, () => syncReports());
   } else {
+    if (s.aircraft) void every('aircraft', Math.max(15, s.aircraftPollS) * 1000, 2000, (lat, lon) => aircraftDirect(lat, lon, Math.max(s.aircraftRangeKm * 1.5, 25)));
     void every('reports-local', 60_000, Infinity, async () => {
       reports.value = activeReports(reports.value);
     });
@@ -257,13 +287,35 @@ export function poke(name: 'events' | 'aircraft' | 'fleet' | 'fuel' | 'cameras' 
   if (loops[name]) loops[name].lastPos = undefined;
 }
 
-export async function checkServer(): Promise<boolean> {
+export async function checkServer(quiet = false): Promise<boolean> {
+  lastServerCheck = Date.now();
   try {
-    await api.health();
-    serverOk = true;
+    const h = await api.health();
+    serverOk = !h.tokenRequired || h.authorized !== false;
+    if (!serverOk && !quiet) showToast('El servidor pide token: configúralo en Ajustes → Servidor');
   } catch {
     serverOk = false;
-    showToast('Servidor no disponible: modo directo (datos parciales)');
+    if (!quiet) showToast('Servidor no disponible: modo directo (datos parciales)');
   }
   return serverOk;
+}
+
+/** Sin servidor: consulta directa a adsb.lol (solo funciona si permite CORS). */
+async function aircraftDirect(lat: number, lon: number, radiusKm: number): Promise<void> {
+  const m = matcherParams();
+  const matcher = {
+    registrations: [...DEFAULT_DGT_MATCHER.registrations, ...m.regs.split(',').filter(Boolean)],
+    hexes: m.hex.split(',').filter(Boolean),
+    callsignPrefixes: [...DEFAULT_DGT_MATCHER.callsignPrefixes, ...m.cs.split(',').filter(Boolean)],
+  };
+  const nm = Math.min(250, Math.ceil(radiusKm / 1.852));
+  try {
+    const res = await fetch(`https://api.adsb.lol/v2/point/${lat.toFixed(3)}/${lon.toFixed(3)}/${nm}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = (await res.json()) as { ac?: ReadsbAircraft[] };
+    aircraft.value = (data.ac ?? []).map((a) => fromReadsb(a, 'adsb.lol', matcher)).filter((a): a is NonNullable<typeof a> => !!a);
+    aircraftInfo.value = { provider: 'adsb.lol (directo)', fetchedAt: new Date().toISOString() };
+  } catch (err) {
+    aircraftInfo.value = { error: `Sin servidor (${(err as Error).message})` };
+  }
 }

@@ -1,0 +1,15 @@
+# Despliegue en Render.com (plan gratuito): New → Blueprint → este repositorio.
+services:
+  - type: web
+    name: radar-bot
+    runtime: node
+    plan: free
+    region: frankfurt
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: APP_TOKEN
+        generateValue: true
