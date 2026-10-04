@@ -425,6 +425,111 @@ function cameraIcon(): ImageData {
   return ctx.getImageData(0, 0, size, size);
 }
 
+function triangleSign(ctx: Ctx, cx: number, cy: number, size: number, inverted = false): void {
+  const h = size * 0.87;
+  ctx.beginPath();
+  if (inverted) {
+    ctx.moveTo(cx - size / 2, cy - h / 2);
+    ctx.lineTo(cx + size / 2, cy - h / 2);
+    ctx.lineTo(cx, cy + h / 2);
+  } else {
+    ctx.moveTo(cx, cy - h / 2);
+    ctx.lineTo(cx + size / 2, cy + h / 2);
+    ctx.lineTo(cx - size / 2, cy + h / 2);
+  }
+  ctx.closePath();
+  ctx.fillStyle = '#fff';
+  ctx.shadowColor = 'rgba(0,0,0,0.35)';
+  ctx.shadowBlur = 4;
+  ctx.fill();
+  ctx.shadowColor = 'transparent';
+  ctx.lineJoin = 'round';
+  ctx.lineWidth = size * 0.11;
+  ctx.strokeStyle = '#dc2626';
+  ctx.stroke();
+}
+
+function hazardIcon(type: string): ImageData {
+  const size = 56;
+  const [, ctx] = canvas(size, size);
+  const c = size / 2;
+  ctx.lineCap = 'round';
+  switch (type) {
+    case 'stop': {
+      ctx.beginPath();
+      for (let i = 0; i < 8; i++) {
+        const a = Math.PI / 8 + (i * Math.PI) / 4;
+        ctx.lineTo(c + 22 * Math.cos(a), c + 22 * Math.sin(a));
+      }
+      ctx.closePath();
+      ctx.fillStyle = '#dc2626';
+      ctx.fill();
+      ctx.lineWidth = 2.5;
+      ctx.strokeStyle = '#fff';
+      ctx.stroke();
+      glyphText(ctx, c, c, 13, 'STOP', '#fff', 900);
+      break;
+    }
+    case 'give_way':
+      triangleSign(ctx, c, c, 44, true);
+      break;
+    case 'toll':
+      disc(ctx, c, c, 20, '#1d4ed8');
+      glyphText(ctx, c, c, 22, '€');
+      break;
+    case 'traffic_signals':
+      disc(ctx, c, c, 20, '#334155');
+      glyphTrafficLight(ctx, c, c, 24);
+      break;
+    case 'crossing':
+      ctx.fillStyle = '#2563eb';
+      roundRect(ctx, c - 19, c - 19, 38, 38, 6);
+      ctx.fill();
+      ctx.lineWidth = 2.5;
+      ctx.strokeStyle = '#fff';
+      ctx.stroke();
+      ctx.fillStyle = '#fff';
+      for (let i = 0; i < 4; i++) ctx.fillRect(c - 13 + i * 7, c - 4, 4, 14);
+      ctx.beginPath();
+      ctx.arc(c, c - 10, 4, 0, Math.PI * 2);
+      ctx.fill();
+      break;
+    default: {
+      triangleSign(ctx, c, c + 2, 46);
+      ctx.strokeStyle = '#111';
+      ctx.fillStyle = '#111';
+      ctx.lineWidth = 3;
+      const y = c + 7;
+      if (type === 'level_crossing') {
+        ctx.beginPath();
+        ctx.moveTo(c - 8, y - 9);
+        ctx.lineTo(c + 8, y + 5);
+        ctx.moveTo(c + 8, y - 9);
+        ctx.lineTo(c - 8, y + 5);
+        ctx.stroke();
+      } else if (type === 'bump') {
+        ctx.beginPath();
+        ctx.moveTo(c - 11, y + 3);
+        ctx.quadraticCurveTo(c, y - 14, c + 11, y + 3);
+        ctx.closePath();
+        ctx.fill();
+      } else if (type === 'narrow') {
+        ctx.beginPath();
+        ctx.moveTo(c - 9, y + 5);
+        ctx.lineTo(c - 4, y - 2);
+        ctx.lineTo(c - 4, y - 10);
+        ctx.moveTo(c + 9, y + 5);
+        ctx.lineTo(c + 4, y - 2);
+        ctx.lineTo(c + 4, y - 10);
+        ctx.stroke();
+      } else {
+        glyphText(ctx, c, y - 2, 20, '!', '#111', 900);
+      }
+    }
+  }
+  return ctx.getImageData(0, 0, size, size);
+}
+
 /** Genera la imagen de un icono a partir de su id, o null si no es nuestro. */
 export function drawIcon(id: string): ImageData | null {
   const parts = id.split('-');
@@ -441,6 +546,8 @@ export function drawIcon(id: string): ImageData | null {
       return fuelIcon(parts[1], parts[2]);
     case 'cam':
       return cameraIcon();
+    case 'hz':
+      return hazardIcon(parts.slice(1).join('-'));
     default:
       return null;
   }

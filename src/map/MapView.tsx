@@ -25,6 +25,26 @@ import {
   simRoute,
 } from '../state/store';
 import { drawIcon, KIND_COLORS, PIXEL_RATIO } from './icons';
+import { extraEffects, setupExtraLayers } from './extraLayers';
+import { selectedRoute } from '../services/nav';
+import { addSegment, pendingStart } from '../services/rally';
+import { showToast, decisionAhead } from '../state/store';
+
+function handleSegmentPick(mode: 'seg-start' | 'seg-end', lat: number, lon: number): void {
+  pickMode.value = null;
+  if (mode === 'seg-start') {
+    pendingStart.value = { lat, lon };
+    pickMode.value = 'seg-end';
+    showToast('Ahora toca el final del tramo');
+    return;
+  }
+  const start = pendingStart.value;
+  pendingStart.value = null;
+  if (!start) return;
+  void addSegment({ name: `Tramo ${new Date().toLocaleDateString('es-ES')}`, start, end: { lat, lon } });
+  showToast('Tramo creado');
+  sheet.value = 'rally';
+}
 import { styleFor } from './styles';
 import type { Feature as GeoFeature, FeatureCollection, Geometry } from 'geojson';
 import type { Aircraft } from '../../shared/types';
@@ -198,12 +218,21 @@ function fuelFeatures(): FC {
   );
 }
 
+// Zoom por velocidad con histéresis: no cambia por oscilaciones pequeñas de velocidad,
+// lo que evita recargas continuas de teselas (tramos de carretera que "desaparecen").
+const BANDS: [number, number][] = [
+  [25, 16.5],
+  [55, 16],
+  [85, 15.3],
+  [105, 14.8],
+  [Infinity, 14.3],
+];
+let band = 0;
+
 function zoomForSpeed(kmh: number): number {
-  if (kmh < 25) return 16.5;
-  if (kmh < 55) return 16;
-  if (kmh < 85) return 15.2;
-  if (kmh < 105) return 14.6;
-  return 14.1;
+  while (band < BANDS.length - 1 && kmh > BANDS[band][0] + 5) band++;
+  while (band > 0 && kmh < BANDS[band - 1][0] - 5) band--;
+  return BANDS[band][1];
 }
 
 export function recenter(): void {
@@ -225,12 +254,16 @@ function moveCamera(map: MLMap, immediate = false): void {
   const side = window.matchMedia('(orientation: landscape) and (max-height: 560px), (min-width: 900px)').matches;
   const left = side ? Math.min(420, window.innerWidth * 0.46) + 16 : 0;
   const headingUp = s.headingUp && p.heading != null && (p.speed ?? 0) > 1.5;
-  const zoom = manualZoom.peek() ?? zoomForSpeed((p.speed ?? 0) * 3.6);
+  const decision = decisionAhead.peek();
+  let zoom = manualZoom.peek() ?? zoomForSpeed((p.speed ?? 0) * 3.6);
+  // Cerca de un cruce o maniobra: más zoom y menos inclinación para verlo claro.
+  if (decision) zoom = Math.max(zoom, 17.3);
+  const pitch = s.headingUp ? (decision ? Math.min(s.pitch, 20) : s.pitch) : 0;
   programmatic = true;
   map.easeTo({
     center: [p.lon, p.lat] as LngLatLike,
     bearing: s.headingUp ? (headingUp ? p.heading! : map.getBearing()) : 0,
-    pitch: s.headingUp ? 45 : 0,
+    pitch,
     zoom,
     padding: { top: s.headingUp ? h * (side ? 0.3 : 0.38) : h * 0.12, bottom: 0, left, right: side ? 60 : 0 },
     duration: immediate ? 600 : 950,
@@ -257,6 +290,7 @@ export function MapView() {
       attributionControl: { compact: true },
       maxPitch: 60,
       fadeDuration: 0,
+      maxTileCacheSize: 600,
     });
     mapInstance = map;
 
@@ -265,7 +299,10 @@ export function MapView() {
       const img = drawIcon(e.id);
       if (img) map.addImage(e.id, img, { pixelRatio: PIXEL_RATIO });
     });
-    map.on('style.load', () => setupLayers(map));
+    map.on('style.load', () => {
+      setupLayers(map);
+      setupExtraLayers(map);
+    });
 
     // Interacción del usuario: deja de seguir la posición.
     const stopFollow = (e: { originalEvent?: unknown }) => {
@@ -279,6 +316,10 @@ export function MapView() {
     // Toque en elementos del mapa.
     map.on('click', (e) => {
       const mode = pickMode.value;
+      if (mode === 'seg-start' || mode === 'seg-end') {
+        handleSegmentPick(mode, e.lngLat.lat, e.lngLat.lng);
+        return;
+      }
       if (mode) {
         const pt = { lat: e.lngLat.lat, lon: e.lngLat.lng };
         simPoints.value = mode === 'sim-from' ? { ...simPoints.value, from: pt } : { ...simPoints.value, to: pt };
@@ -291,6 +332,11 @@ export function MapView() {
         [e.point.x - pad, e.point.y - pad],
         [e.point.x + pad, e.point.y + pad],
       ];
+      const alt = map.getLayer('navAlt-line') ? map.queryRenderedFeatures(box, { layers: ['navAlt-line'] }) : [];
+      if (alt[0]) {
+        selectedRoute.value = Number(alt[0].properties.idx);
+        return;
+      }
       const layers = CLICKABLE.filter((l) => map.getLayer(l));
       const hits = map.queryRenderedFeatures(box, { layers }) as MapGeoJSONFeature[];
       hits.sort((a, b) => layers.indexOf(a.layer.id) - layers.indexOf(b.layer.id));
@@ -330,6 +376,11 @@ export function MapView() {
     let markerAdded = false;
 
     const disposers = [
+      ...extraEffects(map),
+      effect(() => {
+        void decisionAhead.value;
+        if (follow.peek()) moveCamera(map, true);
+      }),
       effect(() => {
         const key = `${settings.value.mapStyle}:${isDark.value}`;
         if (key !== styleKey) {
@@ -401,6 +452,7 @@ export function MapView() {
       }),
       effect(() => {
         void settings.value.headingUp;
+        void settings.value.pitch;
         if (follow.value) moveCamera(map, true);
       }),
     ];

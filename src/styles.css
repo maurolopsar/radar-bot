@@ -1116,6 +1116,356 @@ input[type='range'] {
   animation: fade 0.2s;
 }
 
+
+/* ---------- Navegación ---------- */
+
+.nav-banner {
+  --nav-bg: #1d4ed8;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: var(--radius);
+  background: var(--nav-bg);
+  color: #fff;
+  box-shadow: var(--shadow);
+  cursor: pointer;
+}
+
+:root[data-theme='dark'] .nav-banner {
+  --nav-bg: #1e40af;
+}
+
+.nav-icon {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 64px;
+}
+
+.nav-dist {
+  font-size: 18px;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+}
+
+.nav-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.nav-instr {
+  font-size: 19px;
+  font-weight: 800;
+  line-height: 1.2;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.nav-eta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px 8px 14px;
+  border-radius: var(--radius);
+  background: var(--surface);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: var(--shadow);
+}
+
+.nav-eta .icon-btn {
+  margin-top: 0;
+}
+
+.eta-main {
+  flex: 1;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  text-align: left;
+}
+
+.eta-time {
+  font-size: 22px;
+  font-weight: 900;
+  color: var(--ok);
+}
+
+.eta-sub {
+  font-size: 14px;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.fab.nav {
+  background: #1d4ed8;
+  color: #fff;
+}
+
+input.search {
+  width: 100%;
+  font-size: 17px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  margin: 6px 0 8px;
+}
+
+.stop-dot {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  font-weight: 800;
+  color: #fff;
+  background: #64748b;
+}
+
+.stop-dot.origin {
+  background: #2563eb;
+  border: 4px solid #bfdbfe;
+}
+
+.stop-dot.dest {
+  background: #dc2626;
+}
+
+.route-card {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 12px 14px;
+  margin: 6px 0;
+  border-radius: 14px;
+  background: var(--surface-2);
+  border: 2px solid transparent;
+}
+
+.route-card.on {
+  border-color: var(--accent);
+}
+
+.route-card .s {
+  font-size: 13px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.rc-main {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.rc-time {
+  font-size: 20px;
+  font-weight: 900;
+}
+
+.rc-dist {
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.tag {
+  margin-left: auto;
+  font-size: 12px;
+  font-weight: 800;
+  padding: 3px 8px;
+  border-radius: 8px;
+  background: var(--surface-solid);
+}
+
+.tag.ok {
+  color: var(--ok);
+}
+
+/* ---------- Modo tramo ---------- */
+
+.rally-panel {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 14px;
+  border-radius: var(--radius);
+  background: var(--surface);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: var(--shadow);
+  border: 2px solid transparent;
+  cursor: pointer;
+}
+
+.rally-panel.over {
+  border-color: var(--danger);
+}
+
+.rally-rec,
+.rally-time {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1.05;
+}
+
+.rally-rec .v,
+.rally-time .v {
+  font-size: 26px;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+}
+
+.rally-panel.over .rally-rec .v {
+  color: var(--danger);
+}
+
+.rally-panel .lbl {
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--muted);
+  max-width: 110px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rally-curve {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.rally-curve .t {
+  font-weight: 800;
+  font-size: 15px;
+}
+
+.rally-curve .s,
+.rally-curve.s {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.delta {
+  font-size: 13px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.delta.good {
+  color: var(--ok);
+}
+
+.delta.bad {
+  color: var(--danger);
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  font-size: 13px;
+  color: var(--muted);
+  padding: 6px 0;
+}
+
+.legend i {
+  display: inline-block;
+  width: 18px;
+  height: 6px;
+  border-radius: 3px;
+  margin-right: 5px;
+  vertical-align: middle;
+}
+
+.big-time {
+  font-size: 30px;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+}
+
+.segment {
+  border-bottom: 1px solid var(--border);
+}
+
+.seg-name {
+  font-weight: 700;
+  font-size: 15px;
+  padding: 4px 6px;
+  width: 100%;
+  background: transparent;
+  border: 1px solid transparent;
+}
+
+.seg-name:focus {
+  border-color: var(--border);
+  background: var(--surface-2);
+}
+
+.times {
+  margin: 0 0 10px;
+  padding-left: 22px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.times b {
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Modo radares ---------- */
+
+.speed-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  color: var(--text);
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  line-height: 0.9;
+  letter-spacing: -0.04em;
+}
+
+.speed-overlay span {
+  font-size: min(58vw, 46vh);
+  text-shadow: 0 0 24px var(--bg);
+}
+
+.speed-overlay small {
+  font-size: min(12vw, 8vh);
+  width: 1.9em;
+  height: 1.9em;
+  display: grid;
+  place-items: center;
+  border: 0.16em solid #dc2626;
+  border-radius: 50%;
+  letter-spacing: -0.05em;
+  color: var(--text);
+}
+
+.speed-overlay.over span {
+  color: #dc2626;
+}
+
+.speed {
+  cursor: pointer;
+}
+
 /* ---------- Horizontal y pantallas grandes ---------- */
 
 @media (orientation: landscape) and (max-height: 560px), (min-width: 900px) {

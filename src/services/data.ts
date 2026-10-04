@@ -230,6 +230,12 @@ function tick(): void {
         // Se pide algo más que el radio de aviso para verlos venir en el mapa.
         try {
           const r = await api.aircraft(lat, lon, Math.max(s.aircraftRangeKm * 1.5, 25));
+          if (r.provider === 'none') {
+            // El servidor no llega a ningún proveedor: se intenta desde el propio móvil.
+            await aircraftDirect(lat, lon, Math.max(s.aircraftRangeKm * 1.5, 25));
+            if (aircraftInfo.value.error) aircraftInfo.value = { error: `Servidor: ${r.error ?? 'sin proveedor'} · Directo: ${aircraftInfo.value.error}` };
+            return;
+          }
           aircraft.value = r.aircraft;
           aircraftInfo.value = { provider: r.provider, error: r.error, fetchedAt: r.fetchedAt };
         } catch (err) {

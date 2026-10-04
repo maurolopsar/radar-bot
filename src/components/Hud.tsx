@@ -5,6 +5,9 @@ import { RADAR_LABEL } from '../services/engine';
 import { settings } from '../state/settings';
 import { activeAlerts, corridors, position, radarHits, road, section, speedKmh } from '../state/store';
 import { LimitSign } from './ui';
+import { NavEta } from './NavBanner';
+import { RallyPanel } from './Rally';
+import { updateSettings } from '../state/settings';
 
 function SectionPanel() {
   const s = section.value;
@@ -57,8 +60,15 @@ export function Hud() {
   return (
     <div class="hud" ref={ref}>
       <SectionPanel />
+      <RallyPanel />
+      <NavEta />
       <div class="hud-main">
-        <div class={`speed${over ? ' over' : ''}`}>
+        <div
+          class={`speed${over ? ' over' : ''}`}
+          role="button"
+          title="Toca para activar o desactivar el modo radares (velocidad a pantalla completa)"
+          onClick={() => updateSettings({ radarMode: !s.radarMode })}
+        >
           <span class="v">{kmh == null ? '–' : Math.round(kmh)}</span>
           <span class="u">km/h</span>
         </div>
@@ -68,8 +78,8 @@ export function Hud() {
           <div class="meta">
             {corridor
               ? 'Tramo con radar móvil'
-              : r?.inferred
-                ? 'Límite genérico (no señalizado)'
+              : r?.limitReason && r.inferred
+                ? `Límite: ${r.limitReason.toLowerCase()}`
                 : p?.heading != null
                   ? `Hacia el ${cardinal(p.heading)} · ${Math.round(p.heading)}°`
                   : ' '}

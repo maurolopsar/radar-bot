@@ -1,12 +1,16 @@
 // Punto de entrada Node: API + ficheros estáticos de la app (dist/client).
 
 import { serve } from '@hono/node-server';
+import dns from 'node:dns';
 import { serveStatic } from '@hono/node-server/serve-static';
 import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { createApp } from './app';
 import { warmUpRadars } from './radars';
+
+// Prioriza IPv4: evita fallos de conexión en redes con IPv6 mal configurado.
+dns.setDefaultResultOrder('ipv4first');
 
 const port = Number(process.env.PORT ?? 8787);
 const clientDir = process.env.CLIENT_DIR ?? join(process.cwd(), 'dist/client');

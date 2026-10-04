@@ -17,6 +17,13 @@ function base(): string {
   return settings.value.serverUrl.trim().replace(/\/+$/, '');
 }
 
+export const apiBase = base;
+
+export function apiHeaders(): Record<string, string> {
+  const token = settings.value.token.trim();
+  return token ? { 'x-app-token': token } : {};
+}
+
 async function request<T>(path: string, init: RequestInit & { timeoutMs?: number } = {}): Promise<{ data: T | null; res: Response }> {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), init.timeoutMs ?? 30_000);
@@ -52,6 +59,10 @@ export function matcherParams() {
 }
 
 export const api = {
+  async diag(): Promise<{ results: { group: string; name: string; ok: boolean; status?: number; ms: number; error?: string }[] }> {
+    return (await request<{ results: { group: string; name: string; ok: boolean; status?: number; ms: number; error?: string }[] }>('/diag', { timeoutMs: 30_000 })).data!;
+  },
+
   async health(): Promise<{ ok: boolean; tokenRequired: boolean; authorized?: boolean }> {
     return (await request<{ ok: boolean; tokenRequired: boolean; authorized?: boolean }>('/health', { timeoutMs: 8000 })).data!;
   },

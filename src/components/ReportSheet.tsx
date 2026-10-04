@@ -7,6 +7,7 @@ import { REPORT_LABEL } from '../services/engine';
 import { settings } from '../state/settings';
 import { position, reportAt, sheet, showToast } from '../state/store';
 import { Segmented, Sheet } from './ui';
+import { destination, planRoutes, stops } from '../services/nav';
 
 const KINDS: ReportKind[] = ['mobile_radar', 'police', 'helicopter', 'accident', 'hazard', 'other'];
 
@@ -37,7 +38,7 @@ export function ReportSheet() {
   };
 
   return (
-    <Sheet title="Nuevo aviso">
+    <Sheet title="Este punto">
       <div class="sheet-body">
         {!at ? (
           <div class="empty">Sin posición. Mantén pulsado el mapa en el punto del aviso.</div>
@@ -48,6 +49,32 @@ export function ReportSheet() {
               {' · '}
               {at.lat.toFixed(5)}, {at.lon.toFixed(5)}
             </p>
+            <div class="btns" style={{ marginTop: 0, marginBottom: '12px' }}>
+              <button
+                class="btn primary"
+                onClick={() => {
+                  destination.value = { id: `pt-${at.lat},${at.lon}`, name: 'Punto del mapa', detail: `${at.lat.toFixed(5)}, ${at.lon.toFixed(5)}`, lat: at.lat, lon: at.lon };
+                  stops.value = [];
+                  void planRoutes();
+                  sheet.value = 'route';
+                }}
+              >
+                🧭 Ir aquí
+              </button>
+              {destination.value && (
+                <button
+                  class="btn"
+                  onClick={() => {
+                    stops.value = [...stops.value, { id: `pt-${at.lat},${at.lon}`, name: 'Parada', detail: `${at.lat.toFixed(5)}, ${at.lon.toFixed(5)}`, lat: at.lat, lon: at.lon }];
+                    void planRoutes();
+                    sheet.value = 'route';
+                  }}
+                >
+                  ➕ Añadir parada
+                </button>
+              )}
+            </div>
+            <div class="group">O crea un aviso</div>
             <div class="kinds">
               {KINDS.map((k) => (
                 <button class={`kind-btn${k === kind ? ' on' : ''}`} onClick={() => setKind(k)} aria-pressed={k === kind}>

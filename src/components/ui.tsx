@@ -3,6 +3,10 @@ import { sheet } from '../state/store';
 
 const PATHS: Record<string, string> = {
   close: 'M6 6l12 12M18 6L6 18',
+  search: 'M11 4a7 7 0 100 14 7 7 0 000-14zM21 21l-5-5',
+  flag: 'M5 21V4M5 4h11l-2 4 2 4H5',
+  speed: 'M12 14l4-4M4 18a9 9 0 1116 0',
+  curve: 'M5 20c0-8 4-12 14-14M15 3l4 3-3 4',
   locate: 'M12 2v3M12 19v3M2 12h3M19 12h3M12 7a5 5 0 100 10 5 5 0 000-10z',
   navigate: 'M12 2l7 19-7-4-7 4z',
   north: 'M12 3l5 13-5-3-5 3zM9 21h6',

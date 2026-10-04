@@ -238,3 +238,17 @@ describe('Gasolineras', () => {
     expect(list[0].prices).toEqual({ g95: 1.559, diesel: 1.489 });
   });
 });
+
+import { createApp } from '../server/app';
+
+describe('API', () => {
+  const app = createApp();
+  it('geocodifica coordenadas sin red y valida rutas', async () => {
+    const g = await app.request('/api/geocode?q=40.41,-3.70');
+    expect((await g.json()).places[0]).toMatchObject({ lat: 40.41, lon: -3.7 });
+    const r = await app.request('/api/route?points=40.4,-3.7');
+    expect(r.status).toBe(400);
+    const h = await app.request('/api/health');
+    expect((await h.json()).authorized).toBe(true);
+  });
+});

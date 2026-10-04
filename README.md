@@ -16,9 +16,26 @@ que reúne y cachea las fuentes de datos.
 
 **Conducción**
 - Mapa en tiempo real con tu posición, rumbo y velocidad (orientado al rumbo o al norte, vista 3D).
-- Límite de velocidad de la vía actual (OpenStreetMap, con límite genérico si no está señalizado) y aviso visual de exceso.
+- Límite de velocidad de la vía actual: el señalizado en OpenStreetMap o, si no lo hay, el que marca el Reglamento
+  (autovía 120, convencional 90, urbana 50 con 2+ carriles por sentido, 30 con uno, 20 en plataforma única),
+  detectando si estás en poblado por la densidad de edificios. Se indica de dónde sale el límite.
+- Carreteras resaltadas sobre el mapa base (más grosor y contraste) e inclinación 3D configurable.
 - Pantalla siempre encendida mientras la app está abierta.
 - Diseño para móvil en vertical y en horizontal (soporte de coche), y para escritorio.
+
+**Navegación (como Waze / Google Maps)**
+- Buscador de direcciones y lugares (OpenStreetMap), favoritos Casa/Trabajo y recientes.
+- Rutas con **paradas intermedias** y **rutas alternativas** (con nº de radares en cada una), opción de evitar peajes o autopistas.
+- Instrucciones giro a giro por voz, banner de maniobra, tiempo y hora de llegada, **recálculo** automático si te sales.
+- **Zoom automático** al acercarte a un cruce, rotonda o maniobra.
+- Mantén pulsado el mapa → «Ir aquí» / «Añadir parada».
+
+**Modos**
+- **Modo radares**: tu velocidad enorme y semitransparente sobre el mapa (toca la velocidad del HUD para activarlo).
+- **Modo tramo**: curvas coloreadas por severidad (suave → horquilla), velocidad recomendada en cada momento
+  (nunca por encima del límite legal), aviso si entras demasiado rápido en una curva, curvas «cantadas» por voz,
+  cronómetro manual y **tramos cronometrados** con inicio/fin configurables, salida y llegada automáticas,
+  diferencia en directo con tu récord y los 10 mejores tiempos.
 
 **Radares** (fusionando varias bases de datos y eliminando duplicados)
 - Fijos, de tramo, de semáforo, radares móviles anunciados por ayuntamientos y ubicaciones de radar remolque.
@@ -40,6 +57,8 @@ que reúne y cachea las fuentes de datos.
 - **Incidencias oficiales de la DGT** (obras, cortes, retenciones, meteorología) y **balizas V16** conectadas (vehículos detenidos).
 - **Avisos propios**: radar móvil, policía, helicóptero, accidente… en tu posición o manteniendo pulsado el mapa, con caducidad.
   Se guardan en el dispositivo y en el servidor (compartidos entre tus dispositivos).
+- **Avisos de la vía** (OpenStreetMap): pasos a nivel, resaltos y badenes, estrechamientos, peajes, señales de peligro
+  (animales, desprendimientos…) y, opcionalmente, stops, ceda el paso, semáforos y pasos de peatones de tu camino.
 - Tiempo actual y avisos (hielo, niebla, lluvia intensa, viento), **cámaras de tráfico DGT** y **gasolineras con precios oficiales**.
 - Estadísticas del viaje (distancia, media, máxima, radares superados).
 - Avisos por **voz en español**, pitidos distintos por tipo y vibración (Android).
@@ -61,6 +80,9 @@ que reúne y cachea las fuentes de datos.
 | Cámaras de tráfico | DGT (CCTV DATEX II) | servidor |
 | Límite de velocidad de la vía | OpenStreetMap (Overpass) | directo |
 | Tiempo | [Open-Meteo](https://open-meteo.com/) | directo |
+| Rutas | [OSRM](https://project-osrm.org/) (servidor de demostración) | servidor y directo |
+| Búsqueda | [Photon](https://photon.komoot.io/) y [Nominatim](https://nominatim.org/) | servidor y directo |
+| Pasos a nivel, resaltos, peajes… | OpenStreetMap (Overpass) | directo |
 | Carburantes | [Ministerio para la Transición Ecológica](https://sedeaplicaciones.minetur.gob.es/ServiciosRESTCarburantes/PreciosCarburantes/) | servidor |
 | Mapa base | CARTO (Voyager / Dark Matter), OpenFreeMap, Esri (satélite) | directo |
 
@@ -121,6 +143,15 @@ npm run build && npm start        # http://localhost:8787
 | `APP_TOKEN` | — | Si se define, la API exige la cabecera `x-app-token` (o `?token=`) |
 | `WARMUP` | `1` | `0` para no precargar radares al arrancar |
 | `CLIENT_DIR` | `./dist/client` | Carpeta de la app compilada |
+| `AIRCRAFT_PROVIDERS` | todos | Limitar proveedores ADS-B, p. ej. `adsb.fi,airplanes.live` |
+| `OPENSKY_CLIENT_ID` / `OPENSKY_CLIENT_SECRET` | — | Credenciales API de OpenSky (cuenta gratuita) para más cuota |
+
+### Si no aparecen helicópteros
+
+Ve a **Fuentes de datos → Comprobar conexiones**: muestra si el servidor llega a adsb.lol, airplanes.live, adsb.fi
+y OpenSky. La flota DGT se busca por matrícula, por tipo de aeronave y con un barrido de toda España en todos los
+proveedores. Aun así, los helicópteros solo se ven cuando emiten ADS-B o los localiza MLAT, y a baja altura o en
+zonas sin receptores es habitual que no aparezcan aunque estén volando.
 
 ## Desarrollo
 
@@ -141,7 +172,7 @@ src/      app Preact + MapLibre: mapa, HUD, avisos, ajustes, simulación, PWA
 tests/    tests de parsers con extractos reales, motor de avisos y utilidades
 ```
 
-API del servidor: `GET /api/radars`, `/api/events?lat&lon&radius`, `/api/aircraft?lat&lon&radius`, `/api/aircraft/dgt`,
+API del servidor: `GET /api/route?points=lat,lon;lat,lon&alt=1`, `/api/geocode?q=`, `/api/diag`, `GET /api/radars`, `/api/events?lat&lon&radius`, `/api/aircraft?lat&lon&radius`, `/api/aircraft/dgt`,
 `/api/cameras`, `/api/fuel`, `GET|POST /api/reports`, `DELETE /api/reports/:id`, `/api/health`.
 
 ## Aviso legal

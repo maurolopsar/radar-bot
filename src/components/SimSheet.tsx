@@ -6,6 +6,7 @@ import { planRoute, setSimFactor, startGps, startSim, stopSim, toggleSimPause } 
 import { settings, updateSettings } from '../state/settings';
 import { pickMode, position, sheet, showToast, simActive, simPoints, simRoute, started } from '../state/store';
 import { Icon, Segmented, Sheet } from './ui';
+import { activeRoute, navActive, startNavigation } from '../services/nav';
 
 const PRESETS: { name: string; from: { lat: number; lon: number }; to: { lat: number; lon: number } }[] = [
   { name: 'A-6 · Madrid (Moncloa) → Las Rozas', from: { lat: 40.4385, lon: -3.7238 }, to: { lat: 40.5001, lon: -3.8832 } },
@@ -95,6 +96,28 @@ export function SimSheet() {
             setSimFactor(v);
           }}
         />
+        {activeRoute.value && (
+          <button
+            class="btn primary block"
+            onClick={() => {
+              const r = activeRoute.value!;
+              unlockAudio();
+              started.value = true;
+              if (!navActive.value) startNavigation();
+              simRoute.value = r.coords;
+              simActive.value = true;
+              startSim({ coords: r.coords, speeds: r.speeds, lengthM: r.distance }, factor, () => {
+                simActive.value = false;
+                simRoute.value = null;
+                startGps();
+              });
+              recenter();
+              sheet.value = null;
+            }}
+          >
+            Simular la ruta calculada
+          </button>
+        )}
         <div class="group">Rutas de ejemplo</div>
         {PRESETS.map((p) => (
           <button class="row-item" key={p.name} disabled={busy} onClick={() => void run(p.from, p.to)}>

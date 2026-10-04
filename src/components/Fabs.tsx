@@ -2,11 +2,15 @@ import { recenter } from '../map/MapView';
 import { settings, updateSettings } from '../state/settings';
 import { follow, position, reportAt, sheet } from '../state/store';
 import { Icon } from './ui';
+import { navActive } from '../services/nav';
 
 export function Fabs() {
   const s = settings.value;
   return (
     <div class="fabs">
+      <button class={`fab${navActive.value ? ' nav' : ''}`} aria-label="Buscar destino y rutas" onClick={() => (sheet.value = 'route')}>
+        <Icon name="search" />
+      </button>
       <button
         class="fab report"
         aria-label="Añadir aviso"
@@ -29,15 +33,15 @@ export function Fabs() {
         <Icon name="settings" />
       </button>
       <button
-        class={`fab${s.headingUp ? ' active' : ''}`}
-        aria-label={s.headingUp ? 'Mapa orientado al rumbo' : 'Mapa con el norte arriba'}
-        title={s.headingUp ? 'Rumbo arriba (pulsa para norte arriba)' : 'Norte arriba (pulsa para rumbo arriba)'}
-        onClick={() => updateSettings({ headingUp: !s.headingUp })}
+        class={`fab${follow.value ? ' primary' : ''}`}
+        aria-label={follow.value ? (s.headingUp ? 'Cambiar a norte arriba' : 'Cambiar a rumbo arriba') : 'Centrar en mi posición'}
+        title="Centrar · si ya está centrado, alterna rumbo arriba / norte arriba"
+        onClick={() => {
+          if (follow.value) updateSettings({ headingUp: !s.headingUp });
+          recenter();
+        }}
       >
-        <Icon name={s.headingUp ? 'navigate' : 'north'} />
-      </button>
-      <button class={`fab${follow.value ? ' primary' : ''}`} aria-label="Centrar en mi posición" onClick={recenter}>
-        <Icon name="locate" />
+        <Icon name={follow.value ? (s.headingUp ? 'navigate' : 'north') : 'locate'} />
       </button>
     </div>
   );

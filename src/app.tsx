@@ -12,7 +12,9 @@ import { SourcesSheet } from './components/SourcesSheet';
 import { StartOverlay } from './components/StartOverlay';
 import { TopBar } from './components/TopBar';
 import { MapView } from './map/MapView';
-import { isDark, sheet, started, toast } from './state/store';
+import { RallySheet, SpeedOverlay } from './components/Rally';
+import { RouteSheet } from './components/RouteSheet';
+import { decisionAhead, isDark, sheet, started, toast } from './state/store';
 
 effect(() => {
   const dark = isDark.value;
@@ -39,8 +41,9 @@ function Toast() {
 export function App() {
   const s = sheet.value;
   return (
-    <div class="app">
+    <div class="app" data-decision={decisionAhead.value ? '1' : undefined}>
       <MapView />
+      <SpeedOverlay />
       <TopBar />
       <Fabs />
       <FeatureCard />
@@ -51,6 +54,8 @@ export function App() {
       {s === 'report' && <ReportSheet />}
       {s === 'sources' && <SourcesSheet />}
       {s === 'sim' && <SimSheet />}
+      {s === 'route' && <RouteSheet />}
+      {s === 'rally' && <RallySheet />}
       <Toast />
       {!started.value && <StartOverlay />}
     </div>

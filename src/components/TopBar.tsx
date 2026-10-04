@@ -6,6 +6,7 @@ import { describeWeather } from '../services/weather';
 import { settings } from '../state/settings';
 import { activeAlerts, datasetState, fleet, gpsState, position, sheet, weather, type ActiveAlert } from '../state/store';
 import { LimitSign } from './ui';
+import { NavBanner } from './NavBanner';
 
 function GpsChip() {
   const st = gpsState.value;
@@ -81,6 +82,7 @@ export function TopBar() {
   const [first, ...rest] = alerts;
   return (
     <div class="top">
+      <NavBanner />
       <div class="chips">
         <GpsChip />
         <DataChip />

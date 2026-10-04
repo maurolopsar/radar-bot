@@ -1,5 +1,17 @@
 import { effect, signal } from '@preact/signals';
+import type { RallyProfile } from '../../shared/curves';
 import type { FuelType, RadarKind } from '../../shared/types';
+
+export type HazardKind =
+  | 'level_crossing'
+  | 'bump'
+  | 'narrow'
+  | 'toll'
+  | 'hazard'
+  | 'stop'
+  | 'give_way'
+  | 'traffic_signals'
+  | 'crossing';
 
 export type ThemeSetting = 'auto' | 'light' | 'dark';
 export type MapStyleSetting = 'auto' | 'voyager' | 'positron' | 'dark' | 'liberty' | 'satellite';
@@ -54,6 +66,25 @@ export interface Settings {
     cameras: boolean;
   };
   fuelType: FuelType;
+  /** Mapa */
+  boostRoads: boolean;
+  pitch: number;
+  autoZoomJunctions: boolean;
+  /** Avisos de la vía (OSM) */
+  hazards: Record<HazardKind, boolean>;
+  /** Navegación */
+  navVoice: boolean;
+  avoidTolls: boolean;
+  avoidMotorways: boolean;
+  /** Modo radares: velocidad a pantalla completa */
+  radarMode: boolean;
+  radarModeOpacity: number;
+  /** Modo tramo (curvas y cronómetro) */
+  rallyMode: boolean;
+  rallyProfile: RallyProfile;
+  rallyVoice: boolean;
+  rallyWarn: boolean;
+  showCurves: boolean;
   /** Otros */
   wakeLock: boolean;
   serverUrl: string;
@@ -108,6 +139,30 @@ export const DEFAULT_SETTINGS: Settings = {
     cameras: false,
   },
   fuelType: 'g95',
+  boostRoads: true,
+  pitch: 30,
+  autoZoomJunctions: true,
+  hazards: {
+    level_crossing: true,
+    bump: true,
+    narrow: true,
+    toll: true,
+    hazard: true,
+    stop: false,
+    give_way: false,
+    traffic_signals: false,
+    crossing: false,
+  },
+  navVoice: true,
+  avoidTolls: false,
+  avoidMotorways: false,
+  radarMode: false,
+  radarModeOpacity: 0.35,
+  rallyMode: false,
+  rallyProfile: 'normal',
+  rallyVoice: true,
+  rallyWarn: true,
+  showCurves: true,
   wakeLock: true,
   serverUrl: '',
   token: '',
@@ -127,6 +182,7 @@ function load(): Settings {
       ...saved,
       radarKinds: { ...DEFAULT_SETTINGS.radarKinds, ...saved.radarKinds },
       layers: { ...DEFAULT_SETTINGS.layers, ...saved.layers },
+      hazards: { ...DEFAULT_SETTINGS.hazards, ...saved.hazards },
     };
   } catch {
     return DEFAULT_SETTINGS;
@@ -153,6 +209,10 @@ export function setLayer(layer: keyof Settings['layers'], on: boolean): void {
 
 export function setRadarKind(kind: RadarKind, on: boolean): void {
   settings.value = { ...settings.value, radarKinds: { ...settings.value.radarKinds, [kind]: on } };
+}
+
+export function setHazard(kind: HazardKind, on: boolean): void {
+  settings.value = { ...settings.value, hazards: { ...settings.value.hazards, [kind]: on } };
 }
 
 export function resetSettings(): void {

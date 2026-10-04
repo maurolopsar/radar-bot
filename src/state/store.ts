@@ -53,6 +53,9 @@ export interface RoadInfo {
   /** true si el límite es el genérico del tipo de vía (no señalizado en OSM). */
   inferred?: boolean;
   highway?: string;
+  /** Explicación del límite ("Señalizado", "Urbana, 1 carril por sentido"...). */
+  limitReason?: string;
+  urban?: boolean | null;
 }
 export const road = signal<RoadInfo | null>(null);
 
@@ -95,10 +98,12 @@ export const follow = signal(true);
 export const manualZoom = signal<number | null>(null);
 export const simRoute = signal<[number, number][] | null>(null);
 export const simActive = signal(false);
-export const pickMode = signal<'sim-from' | 'sim-to' | null>(null);
+export const pickMode = signal<'sim-from' | 'sim-to' | 'seg-start' | 'seg-end' | null>(null);
+/** Hay un cruce o maniobra cerca: el mapa se acerca para verlo mejor. */
+export const decisionAhead = signal(false);
 export const simPoints = signal<{ from?: { lat: number; lon: number }; to?: { lat: number; lon: number } }>({});
 export const selected = signal<{ type: string; data: unknown } | null>(null);
-export type SheetName = 'settings' | 'layers' | 'nearby' | 'report' | 'sources' | 'sim' | null;
+export type SheetName = 'settings' | 'layers' | 'nearby' | 'report' | 'sources' | 'sim' | 'route' | 'rally' | null;
 export const sheet = signal<SheetName>(null);
 export const reportAt = signal<{ lat: number; lon: number } | null>(null);
 export const toast = signal<{ text: string; id: number } | null>(null);

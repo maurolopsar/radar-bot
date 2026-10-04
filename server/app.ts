@@ -7,7 +7,9 @@ import { DEFAULT_DGT_MATCHER, type DgtMatcher } from '../shared/aircraft';
 import { bboxAround, distanceM } from '../shared/geo';
 import type { SourceStatus, TrafficEvent } from '../shared/types';
 import { CachedResource, TtlMap } from './lib/cache';
-import { errorMessage } from './lib/http';
+import { errorMessage, fetchJson } from './lib/http';
+import { runDiagnostics } from './diag';
+import { nominatimUrl, parseCoordinates, parseNominatim, parsePhoton, photonUrl, type Place } from '../shared/geocode';
 import { getRadarDataset } from './radars';
 import { addReport, deleteReport, listReports, validateReport } from './reports';
 import { aircraftNear, dgtFleet } from './sources/aircraft';
@@ -23,7 +25,9 @@ const cameras = new CachedResource('dgt-cameras', 24 * 60 * MIN, fetchDgtCameras
 const fuel = new CachedResource('fuel', 60 * MIN, fetchFuel, { persist: true, retryMs: 10 * MIN });
 const wazeCache = new TtlMap<TrafficEvent[]>(60_000);
 const aircraftCache = new TtlMap<Awaited<ReturnType<typeof aircraftNear>>>(6_000, 50);
-const fleetCache = new TtlMap<Awaited<ReturnType<typeof dgtFleet>>>(15_000, 10);
+const fleetCache = new TtlMap<Awaited<ReturnType<typeof dgtFleet>>>(40_000, 10);
+const routeCache = new TtlMap<unknown>(5 * 60_000, 100);
+const geocodeCache = new TtlMap<Place[]>(60 * 60_000, 300);
 
 function coords(c: Context): { lat: number; lon: number; radiusKm: number } | null {
   const lat = Number(c.req.query('lat'));
@@ -163,6 +167,55 @@ export function createApp(): Hono {
   });
 
   api.delete('/reports/:id', async (c) => c.json({ deleted: await deleteReport(c.req.param('id')) }));
+
+  // Diagnóstico de conexiones desde el servidor.
+  api.get('/diag', async (c) => c.json(await runDiagnostics()));
+
+  // Rutas: reenvía a OSRM (evita bloqueos/CORS en algunos navegadores).
+  api.get('/route', async (c) => {
+    const pts = (c.req.query('points') ?? '')
+      .split(';')
+      .map((s) => s.split(',').map(Number))
+      .filter((p) => p.length === 2 && p.every(Number.isFinite));
+    if (pts.length < 2 || pts.length > 25) return c.json({ code: 'InvalidQuery', message: 'Entre 2 y 25 puntos' }, 400);
+    const coords = pts.map(([lat, lon]) => `${lon.toFixed(6)},${lat.toFixed(6)}`).join(';');
+    const q = new URLSearchParams({ overview: 'full', geometries: 'geojson', steps: 'true', annotations: 'duration,speed' });
+    q.set('alternatives', c.req.query('alt') === '1' && pts.length === 2 ? '3' : 'false');
+    const exclude = (c.req.query('exclude') ?? '').split(',').filter((x) => ['toll', 'motorway', 'ferry'].includes(x));
+    if (exclude.length) q.set('exclude', exclude.join(','));
+    const url = `https://router.project-osrm.org/route/v1/driving/${coords}?${q}`;
+    try {
+      return c.json(await routeCache.getOrLoad(url, () => fetchJson(url, { timeoutMs: 20_000 })) as object);
+    } catch (err) {
+      return c.json({ code: 'Error', message: errorMessage(err) }, 502);
+    }
+  });
+
+  // Búsqueda de lugares (Photon y, si falla, Nominatim).
+  api.get('/geocode', async (c) => {
+    const q = (c.req.query('q') ?? '').trim().slice(0, 200);
+    if (!q) return c.json({ places: [] });
+    const xy = parseCoordinates(q);
+    if (xy) return c.json({ places: [xy] });
+    const lat = Number(c.req.query('lat'));
+    const lon = Number(c.req.query('lon'));
+    const near = Number.isFinite(lat) && Number.isFinite(lon) ? { lat, lon } : undefined;
+    const key = `${q.toLowerCase()}|${near ? `${lat.toFixed(1)},${lon.toFixed(1)}` : ''}`;
+    try {
+      const places = await geocodeCache.getOrLoad(key, async () => {
+        try {
+          const r = parsePhoton(await fetchJson(photonUrl(q, near), { timeoutMs: 8000 }));
+          if (r.length) return r;
+        } catch {
+          // Nominatim como respaldo
+        }
+        return parseNominatim(await fetchJson(nominatimUrl(q, near), { timeoutMs: 10_000 }));
+      });
+      return c.json({ places });
+    } catch (err) {
+      return c.json({ places: [], error: errorMessage(err) }, 502);
+    }
+  });
 
   api.onError((err, c) => {
     console.error('[api]', err);

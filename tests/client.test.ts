@@ -45,7 +45,7 @@ describe('vía actual', () => {
     expect(roadInfoOf(m.way, m.forward)).toMatchObject({ ref: 'A-6', maxspeed: 100, inferred: false });
     const m2 = matchWay({ lat: 40.01, lon: -2.995, heading: 90 }, [main, side])!;
     expect(m2.way.id).toBe(2);
-    expect(roadInfoOf(m2.way, m2.forward)).toMatchObject({ maxspeed: 50, inferred: true });
+    expect(roadInfoOf(m2.way, m2.forward)).toMatchObject({ maxspeed: 30, inferred: true, limitReason: 'Urbana, 1 carril por sentido (estimado)' });
   });
 
   it('respeta maxspeed:forward / backward', () => {
@@ -84,5 +84,24 @@ describe('prioridad del banner', () => {
     const heliClose = { ...heli, stage: 'close' } as const;
     expect(alertRank(radar)).toBeLessThan(alertRank(heli));
     expect(alertRank(heliClose)).toBeLessThan(alertRank(heli));
+  });
+});
+
+import { parseRoadResponse } from '../src/services/road';
+
+describe('consulta de vía', () => {
+  it('separa vías, avisos y zona urbana', () => {
+    const r = parseRoadResponse({
+      elements: [
+        { type: 'way', id: 1, tags: { highway: 'residential' }, nodes: [1, 2], geometry: [{ lat: 40, lon: -3 }, { lat: 40.001, lon: -3 }] },
+        { type: 'way', id: 2, tags: { highway: 'primary' }, geometry: [{ lat: 40, lon: -3 }] },
+        { type: 'node', id: 9, lat: 40.0005, lon: -3, tags: { traffic_calming: 'bump' } },
+        { type: 'count', id: 0, tags: { ways: '20', total: '20' } },
+      ],
+    });
+    expect(r.ways.map((w) => w.id)).toEqual([1]);
+    expect(parseRoadResponse({ elements: [{ type: 'way', id: 5, tags: {}, geometry: [{ lat: 1, lon: 1 }, { lat: 1.1, lon: 1 }] }] }).ways).toHaveLength(1);
+    expect(r.hazards[0]).toMatchObject({ type: 'bump', id: 'hz-9' });
+    expect(r.urban).toBe(true);
   });
 });

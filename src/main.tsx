@@ -2,9 +2,13 @@ import { render } from 'preact';
 import { App } from './app';
 import { checkServer, loadCachedRadars, startDataLoops } from './services/data';
 import { startEngine } from './services/engine';
+import { startNavService } from './services/nav';
+import { startRallyService } from './services/rally';
 import './styles.css';
 
 startEngine();
+startNavService();
+startRallyService();
 render(<App />, document.getElementById('app')!);
 
 void (async () => {

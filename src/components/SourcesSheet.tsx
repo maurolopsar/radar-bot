@@ -1,6 +1,51 @@
 import { refreshRadars } from '../services/data';
 import { aircraftInfo, dataset, datasetState, eventSources, fleetInfo } from '../state/store';
 import { Icon, Sheet, timeAgo } from './ui';
+import { useState } from 'preact/hooks';
+import { api } from '../services/api';
+
+type DiagRow = { group: string; name: string; ok: boolean; status?: number; ms: number; error?: string };
+
+function Diagnostics() {
+  const [rows, setRows] = useState<DiagRow[] | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  return (
+    <>
+      <div class="group">Diagnóstico de conexiones</div>
+      <p class="note">Comprueba desde el servidor si llega a cada servicio. Útil si no aparecen helicópteros, Waze o radares.</p>
+      <button
+        class="btn block"
+        disabled={busy}
+        onClick={async () => {
+          setBusy(true);
+          setErr(null);
+          try {
+            setRows((await api.diag()).results);
+          } catch (e) {
+            setErr((e as Error).message);
+          } finally {
+            setBusy(false);
+          }
+        }}
+      >
+        {busy ? 'Comprobando…' : 'Comprobar conexiones'}
+      </button>
+      {err && <p class="note" style={{ color: 'var(--danger)' }}>{err}</p>}
+      {rows?.map((r) => (
+        <div class="row-item" key={r.name}>
+          <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: r.ok ? 'var(--ok)' : 'var(--danger)', flex: 'none' }} />
+          <div class="grow">
+            <div class="t">
+              {r.name} <span class="s">· {r.group}</span>
+            </div>
+            <div class="s">{r.ok ? `OK (${r.status}) en ${r.ms} ms` : `${r.status ? `HTTP ${r.status}` : 'Sin conexión'} · ${r.error ?? ''}`}</div>
+          </div>
+        </div>
+      ))}
+    </>
+  );
+}
 
 export function SourcesSheet() {
   const ds = dataset.value;
@@ -61,6 +106,7 @@ export function SourcesSheet() {
             <div class="s">{fleetInfo.value.error ?? (fleetInfo.value.provider ? `${fleetInfo.value.provider} · ${timeAgo(fleetInfo.value.fetchedAt)}` : 'Sin consultar')}</div>
           </div>
         </div>
+        <Diagnostics />
         <div class="group">Atribución y aviso legal</div>
         <p class="note">
           Radares: Dirección General de Tráfico (NAP, CC BY), Servei Català de Trànsit (Llicència oberta d'ús d'informació – Catalunya), Ayuntamiento de Madrid (CC BY 4.0),

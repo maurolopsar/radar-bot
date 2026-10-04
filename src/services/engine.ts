@@ -34,7 +34,11 @@ import {
 } from '../state/store';
 import { beep, say, spokenDistance } from './audio';
 import { onFix } from './geolocation';
-import { currentRoadRefs, updateRoad } from './road';
+import { ahead, currentRoadRefs, roadHazards, updateRoad } from './road';
+import { navActive, progress } from './nav';
+import { projectOnLine } from '../../shared/geo';
+import type { Hazard } from '../../shared/hazards';
+import { decisionAhead } from '../state/store';
 
 export const RADAR_LABEL: Record<RadarKind, string> = {
   fixed: 'Radar fijo',
@@ -176,6 +180,45 @@ function proximityOpts(): ProximityOptions {
 }
 
 const radarTracker = new ProximityTracker<Radar>(proximityOpts());
+const hazardTracker = new ProximityTracker<Hazard>({
+  minDistance: 120,
+  maxDistance: 700,
+  secondsAhead: 14,
+  coneDeg: 25,
+  closeSeconds: 5,
+  minCloseDistance: 50,
+  minSpeedMs: 2,
+});
+
+/** Avisos de la vía (OSM) que están sobre el camino por delante. */
+function hazardsAhead(p: Position): Hazard[] {
+  const enabledKinds = settings.peek().hazards;
+  const path = ahead.peek();
+  const near = roadHazards.peek().filter((h) => enabledKinds[h.type] && Math.abs(h.lat - p.lat) < 0.012 && Math.abs(h.lon - p.lon) < 0.016);
+  if (!path || path.coords.length < 2) return near.filter((h) => h.type !== 'stop' && h.type !== 'give_way' && h.type !== 'crossing');
+  return near.filter((h) => {
+    const pr = projectOnLine(h.lat, h.lon, path.coords);
+    return pr.distance <= 15 && pr.along > 5;
+  });
+}
+
+const STRAIGHT_TYPES = new Set(['continue', 'new name', 'depart']);
+
+/** ¿Hay que tomar una decisión pronto (maniobra de la ruta o cruce)? */
+function computeDecision(p: Position): boolean {
+  const s = settings.peek();
+  if (!s.autoZoomJunctions) return false;
+  const v = p.speed ?? 0;
+  const prog = progress.peek();
+  if (navActive.peek() && prog?.next) {
+    const n = prog.next;
+    const straight = STRAIGHT_TYPES.has(n.type) && (!n.modifier || n.modifier === 'straight');
+    return !straight && n.type !== 'arrive' && prog.toNext < Math.max(150, v * 10) && prog.toNext > -20;
+  }
+  if (v * 3.6 > 70) return false;
+  const j = ahead.peek()?.junctions.find((x) => x.along > 0);
+  return !!j && j.along < Math.max(60, v * 6) && (j.exits > 0 || j.roundabout);
+}
 const eventTracker = new ProximityTracker<EventTarget>(proximityOpts());
 const sectionTracker = new SectionTracker();
 
@@ -417,6 +460,31 @@ function handleFix(p: Position): void {
       lon: t.lon,
     });
   }
+
+  // --- Avisos de la vía (pasos a nivel, resaltos, peajes...)
+  const hz = hazardTracker.update(fix, hazardsAhead(p));
+  for (const e of hz.events) {
+    if (e.type === 'approach') {
+      beep('hazard');
+      say(`${e.target.label} a ${spokenDistance(e.distance)}`);
+    }
+  }
+  for (const h of hz.hits.slice(0, 2)) {
+    alerts.push({
+      id: `hz-${h.target.id}`,
+      kind: 'event',
+      title: h.target.label,
+      distance: h.distance,
+      stage: h.stage,
+      severity: 'warning',
+      icon: `hz-${h.target.type}`,
+      lat: h.target.lat,
+      lon: h.target.lon,
+    });
+  }
+
+  const decide = computeDecision(p);
+  if (decide !== decisionAhead.peek()) decisionAhead.value = decide;
 
   // --- Aeronaves
   checkAircraft(p, alerts);

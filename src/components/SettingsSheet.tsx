@@ -8,7 +8,7 @@ import { checkServer, poke, refreshRadars, saveImports } from '../services/data'
 import { RADAR_LABEL } from '../services/engine';
 import { parseRadarFile } from '../services/importer';
 import { setWakeLock, wakeLockSupported } from '../services/wakelock';
-import { resetSettings, setRadarKind, settings, updateSettings, type MapStyleSetting, type Settings } from '../state/settings';
+import { resetSettings, setHazard, setRadarKind, settings, updateSettings, type HazardKind, type MapStyleSetting, type Settings } from '../state/settings';
 import { importedRadars, sheet, showToast } from '../state/store';
 import { Icon, Row, Segmented, Sheet, ToggleRow } from './ui';
 
@@ -38,6 +38,18 @@ function TextRow({ title, sub, value, placeholder, onChange, type = 'text' }: { 
 }
 
 const KINDS: RadarKind[] = ['fixed', 'section', 'redlight', 'mobile', 'trailer'];
+
+const HAZARDS: [HazardKind, string][] = [
+  ['level_crossing', 'Pasos a nivel'],
+  ['bump', 'Resaltos, badenes y bandas'],
+  ['narrow', 'Estrechamientos'],
+  ['toll', 'Peajes'],
+  ['hazard', 'Señales de peligro (animales, desprendimientos…)'],
+  ['stop', 'Stop en tu camino'],
+  ['give_way', 'Ceda el paso en tu camino'],
+  ['traffic_signals', 'Semáforos'],
+  ['crossing', 'Pasos de peatones'],
+];
 
 export function SettingsSheet() {
   const s = settings.value;
@@ -133,6 +145,16 @@ export function SettingsSheet() {
         <Range title="Margen de exceso de velocidad" value={s.overspeedTolerance} min={0} max={15} step={1} unit="km/h" onChange={(v) => set({ overspeedTolerance: v })} />
         <ToggleRow title="Alarma de exceso cerca del radar" checked={s.overspeedAlarm} onChange={(v) => set({ overspeedAlarm: v })} />
         <ToggleRow title="Pitido al superar un radar" checked={s.announcePassed} onChange={(v) => set({ announcePassed: v })} />
+
+        <div class="group">Avisos de la vía (OpenStreetMap)</div>
+        {HAZARDS.map(([k, label]) => (
+          <ToggleRow key={k} icon={iconUrl(`hz-${k}`)} title={label} checked={s.hazards[k]} onChange={(v) => setHazard(k, v)} />
+        ))}
+
+        <div class="group">Navegación</div>
+        <ToggleRow title="Instrucciones por voz" checked={s.navVoice} onChange={(v) => set({ navVoice: v })} />
+        <ToggleRow title="Evitar peajes" checked={s.avoidTolls} onChange={(v) => set({ avoidTolls: v })} />
+        <ToggleRow title="Evitar autopistas y autovías" checked={s.avoidMotorways} onChange={(v) => set({ avoidMotorways: v })} />
 
         <div class="group">Helicópteros y aeronaves</div>
         <ToggleRow icon={iconUrl('ac-dgt')} title="Vigilar helicópteros DGT (Pegasus)" sub="Datos ADS-B/MLAT de adsb.lol, airplanes.live, adsb.fi y OpenSky" checked={s.aircraft} onChange={(v) => set({ aircraft: v })} />
