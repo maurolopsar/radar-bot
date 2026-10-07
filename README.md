@@ -54,6 +54,7 @@ que reúne y cachea las fuentes de datos.
 
 **Avisos e información de tráfico**
 - Avisos de usuarios de **Waze**: controles policiales, radares móviles, accidentes, peligros, atascos.
+  Es una API no oficial y Waze bloquea a menudo las peticiones automatizadas (HTTP 403); si pasa, el resto de la app sigue funcionando.
 - **Incidencias oficiales de la DGT** (obras, cortes, retenciones, meteorología) y **balizas V16** conectadas (vehículos detenidos).
 - **Avisos propios**: radar móvil, policía, helicóptero, accidente… en tu posición o manteniendo pulsado el mapa, con caducidad.
   Se guardan en el dispositivo y en el servidor (compartidos entre tus dispositivos).
@@ -72,7 +73,8 @@ que reúne y cachea las fuentes de datos.
 | Tramos con radar móvil | [DGT – tramos INVIVE](https://nap.dgt.es/es/dataset/tramos-invive) | servidor |
 | Radares de Cataluña (fijos, tramo, remolque) | [Servei Català de Trànsit](https://transit.gencat.cat/ca/seguretat_viaria/cinemometres-fixos-trams-mobils/) | servidor |
 | Radares de la ciudad de Madrid | [datos.madrid.es](https://datos.madrid.es/dataset/300049-0-radares-fijos-moviles) | servidor |
-| Euskadi, Navarra, Salamanca, Donostia, radares móviles de Murcia, León, Donostia… | feed abierto [Radares Anunciados](https://github.com/GeiserX/radares-anunciados) | servidor y directo |
+| Euskadi (Trafikoa), Navarra (Visor de Tráfico) y Donostia | webs oficiales (algunas solo responden a IP española) | servidor |
+| Radares móviles municipales (Murcia, León…) | feed abierto [Radares Anunciados](https://github.com/GeiserX/radares-anunciados), opcional: puede no estar publicado | servidor y directo |
 | Radares de la comunidad (incluye muchos municipales) | [OpenStreetMap](https://wiki.openstreetmap.org/wiki/Tag:highway%3Dspeed_camera) vía Overpass | servidor y directo |
 | Helicópteros / aeronaves | [adsb.lol](https://api.adsb.lol/docs), [airplanes.live](https://airplanes.live/api-guide/), [adsb.fi](https://github.com/adsbfi/opendata), [OpenSky](https://opensky-network.org/) (en cascada) | servidor |
 | Incidencias y balizas V16 | [DGT – DATEX II v3](https://nap.dgt.es/dataset/incidencias-dgt-datex2-v3-7) | servidor |

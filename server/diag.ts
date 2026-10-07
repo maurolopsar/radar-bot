@@ -1,6 +1,7 @@
 // Diagnóstico: comprueba desde el servidor el acceso a cada servicio externo.
 
-import { errorMessage, fetchRaw } from './lib/http';
+import { API_USER_AGENT, errorMessage, fetchRaw } from './lib/http';
+import { WAZE_HEADERS } from './sources/waze';
 import { providerStatus } from './sources/aircraft';
 
 const TARGETS: { name: string; url: string; group: string }[] = [
@@ -11,7 +12,9 @@ const TARGETS: { name: string; url: string; group: string }[] = [
   { group: 'Radares', name: 'DGT infocar', url: 'https://infocar.dgt.es/datex2/dgt/PredefinedLocationsPublication/radares/content.xml' },
   { group: 'Radares', name: 'DGT NAP', url: 'https://nap.dgt.es/datex2/dgt/PredefinedLocationsPublication/tramos_invive/content.xml' },
   { group: 'Radares', name: 'Servei Català de Trànsit', url: 'https://transit.gencat.cat/web/.content/documents/seguretat_viaria/radars-remolc.txt' },
-  { group: 'Radares', name: 'Radares Anunciados', url: 'https://geiserx.github.io/radares-anunciados/status.json' },
+  { group: 'Radares', name: 'Radares Anunciados (opcional)', url: 'https://geiserx.github.io/radares-anunciados/feed.geojson' },
+  { group: 'Radares', name: 'Trafikoa (Euskadi)', url: 'https://apps.trafikoa.euskadi.eus/lfr/web/trafikoa/cabinas-de-radar-fijo' },
+  { group: 'Radares', name: 'Donostia', url: 'https://www.donostia.eus/geozerbitzuak/rest/services/ext/GARRAIOA/MapServer/41?f=json' },
   { group: 'Radares', name: 'Overpass (OSM)', url: 'https://overpass-api.de/api/status' },
   { group: 'Tráfico', name: 'Waze', url: 'https://www.waze.com/live-map/api/georss?top=40.42&bottom=40.40&left=-3.72&right=-3.70&env=row&types=alerts' },
   { group: 'Rutas', name: 'OSRM', url: 'https://router.project-osrm.org/route/v1/driving/-3.70,40.41;-3.69,40.42?overview=false' },
@@ -35,7 +38,7 @@ export async function runDiagnostics(): Promise<{ results: DiagResult[]; aircraf
       try {
         const res = await fetchRaw(t.url, {
           timeoutMs: 10_000,
-          headers: t.name === 'Waze' ? { Referer: 'https://www.waze.com/live-map/' } : {},
+          headers: t.name === 'Waze' ? WAZE_HEADERS : t.group === 'Aeronaves' ? { 'User-Agent': API_USER_AGENT } : {},
         });
         await res.body?.cancel();
         return { group: t.group, name: t.name, ok: true, status: res.status, ms: Date.now() - t0 };

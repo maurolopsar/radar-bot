@@ -12,6 +12,7 @@ const SOURCE_PRIORITY: Record<string, number> = {
   navarra: 0,
   salamanca: 0,
   donostia: 0,
+  regional: 0,
   feed: 1,
   user: 1,
   import: 2,

@@ -252,3 +252,30 @@ describe('API', () => {
     expect((await h.json()).authorized).toBe(true);
   });
 });
+
+import { parseDonostia, parseEuskadi, parseNavarra } from '../server/sources/regional';
+
+describe('Radares regionales', () => {
+  it('Euskadi: convierte UTM 30N y lee límite y carretera', () => {
+    const list = parseEuskadi(fx('euskadi_cabinas.html'));
+    expect(list.length).toBeGreaterThanOrEqual(1);
+    const r = list[0];
+    expect(r).toMatchObject({ kind: 'fixed', road: 'A-8', maxspeed: 80, direction: 'DONOSTIA / SAN SEBASTIÁN', sources: ['euskadi'] });
+    expect(r.lat).toBeGreaterThan(43.2);
+    expect(r.lat).toBeLessThan(43.35);
+    expect(r.lon).toBeGreaterThan(-3.05);
+    expect(r.lon).toBeLessThan(-2.9);
+  });
+  it('Navarra: nombre con carretera, PK y sentido', () => {
+    const list = parseNavarra(JSON.parse(fx('navarra_radars.json')));
+    expect(list).toHaveLength(3);
+    expect(list[0]).toMatchObject({ id: 'navarra-A-1-401.6-C', road: 'A-1', direction: 'creciente' });
+    expect(list[0].lat).toBeGreaterThan(42.8);
+    expect(list[0].lat).toBeLessThan(43);
+  });
+  it('Donostia: capa GeoJSON', () => {
+    const list = parseDonostia(JSON.parse(fx('donostia_radarra.json')));
+    expect(list).toHaveLength(3);
+    expect(list[0]).toMatchObject({ maxspeed: 30, sources: ['donostia'] });
+  });
+});

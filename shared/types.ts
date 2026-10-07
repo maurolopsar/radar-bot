@@ -67,6 +67,8 @@ export interface SourceStatus {
   error?: string;
   /** true si se sirve una copia anterior porque la última descarga falló. */
   stale?: boolean;
+  /** Fuente complementaria: si falla no se considera un error. */
+  optional?: boolean;
 }
 
 export interface RadarDataset {

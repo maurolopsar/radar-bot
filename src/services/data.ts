@@ -66,7 +66,7 @@ export async function refreshRadars(force = false): Promise<void> {
       await save(DS_KEY, ds);
       if (newTag) await save(ETAG_KEY, newTag);
     }
-    const failing = (ds ?? dataset.value)?.sources.filter((s) => !s.ok && !s.stale).length ?? 0;
+    const failing = (ds ?? dataset.value)?.sources.filter((s) => !s.ok && !s.stale && !s.optional).length ?? 0;
     datasetState.value = { loading: false, source: 'server', error: failing ? `${failing} fuente(s) sin datos` : undefined };
     // Si alguna fuente aún no ha respondido (primer arranque del servidor), reintenta pronto.
     if (failing) setTimeout(() => void refreshRadars(), 3 * 60_000);

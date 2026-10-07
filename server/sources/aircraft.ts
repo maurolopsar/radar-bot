@@ -18,7 +18,7 @@ import {
 } from '../../shared/aircraft';
 import { bboxAround, distanceM, kmToNm } from '../../shared/geo';
 import type { Aircraft, AircraftResponse } from '../../shared/types';
-import { errorMessage, fetchJson, fetchText } from '../lib/http';
+import { API_USER_AGENT, errorMessage, fetchJson, fetchText, HttpError } from '../lib/http';
 
 interface ReadsbResponse {
   ac?: ReadsbAircraft[];
@@ -58,10 +58,18 @@ const PROVIDERS: Provider[] = [
   },
 ];
 
+/** Proveedores que han rechazado el acceso (403/401/429) quedan en pausa un rato. */
+const blockedUntil = new Map<string, number>();
+
 const enabled = (): Provider[] => {
   const only = process.env.AIRCRAFT_PROVIDERS?.split(',').map((s) => s.trim().toLowerCase());
-  return only?.length ? PROVIDERS.filter((p) => only.includes(p.name)) : PROVIDERS;
+  const list = only?.length ? PROVIDERS.filter((p) => only.includes(p.name)) : PROVIDERS;
+  const now = Date.now();
+  const open = list.filter((p) => (blockedUntil.get(p.name) ?? 0) < now);
+  return open.length ? open : list;
 };
+
+const API_HEADERS = { 'User-Agent': API_USER_AGENT, Accept: 'application/json' };
 
 // Cola por proveedor para respetar sus límites de peticiones por segundo.
 const queues = new Map<string, Promise<unknown>>();
@@ -86,11 +94,15 @@ export const providerStatus = new Map<string, { ok: boolean; at: string; ms: num
 async function readsb(p: Provider, url: string, timeoutMs = 8000): Promise<ReadsbAircraft[]> {
   const t0 = Date.now();
   try {
-    const data = await throttled(p, () => fetchJson<ReadsbResponse>(url, { timeoutMs }));
+    const data = await throttled(p, () => fetchJson<ReadsbResponse>(url, { timeoutMs, headers: API_HEADERS }));
     const ac = list(data);
     providerStatus.set(p.name, { ok: true, at: new Date().toISOString(), ms: Date.now() - t0, count: ac.length });
     return ac;
   } catch (err) {
+    if (err instanceof HttpError && [401, 403, 429].includes(err.status)) {
+      // Acceso denegado o límite superado: se deja de usar 30 min (10 si es límite).
+      blockedUntil.set(p.name, Date.now() + (err.status === 429 ? 10 : 30) * 60_000);
+    }
     providerStatus.set(p.name, { ok: false, at: new Date().toISOString(), ms: Date.now() - t0, error: errorMessage(err) });
     throw new Error(`${p.name}: ${errorMessage(err)}`);
   }
@@ -125,7 +137,7 @@ async function openSkyArea(b: { south: number; west: number; north: number; east
     `&lamax=${b.north.toFixed(3)}&lomax=${b.east.toFixed(3)}&extended=1`;
   const t0 = Date.now();
   try {
-    const data = await fetchJson<{ time: number; states: OpenSkyState[] | null }>(url, { timeoutMs: 12_000, headers: await openskyHeaders() });
+    const data = await fetchJson<{ time: number; states: OpenSkyState[] | null }>(url, { timeoutMs: 12_000, headers: { ...API_HEADERS, ...(await openskyHeaders()) } });
     const out = (data.states ?? []).map((s) => fromOpenSky(s, data.time, m)).filter((a): a is Aircraft => !!a);
     providerStatus.set('opensky', { ok: true, at: new Date().toISOString(), ms: Date.now() - t0, count: out.length });
     return out;

@@ -4,6 +4,9 @@ export const USER_AGENT =
   process.env.HTTP_USER_AGENT ??
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36 radar-bot/0.1';
 
+/** Identificación honesta para APIs (algunas rechazan con 403 un "navegador" que llega desde un servidor). */
+export const API_USER_AGENT = 'radar-bot/0.3 (uso personal; +https://github.com/maurolopsar/radar-bot)';
+
 export interface FetchOptions {
   timeoutMs?: number;
   headers?: Record<string, string>;

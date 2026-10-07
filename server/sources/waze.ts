@@ -4,7 +4,7 @@
 
 import type { BBox } from '../../shared/geo';
 import type { EventCategory, TrafficEvent } from '../../shared/types';
-import { fetchJson } from '../lib/http';
+import { errorMessage, fetchJson } from '../lib/http';
 
 export interface WazeAlert {
   uuid?: string;
@@ -169,13 +169,46 @@ export function parseWaze(data: WazeResponse): TrafficEvent[] {
   return out;
 }
 
-export async function fetchWaze(b: BBox): Promise<TrafficEvent[]> {
-  const data = await fetchJson<WazeResponse>(wazeUrl(b), {
-    timeoutMs: 15_000,
-    headers: {
-      Referer: 'https://www.waze.com/live-map/',
-      Origin: 'https://www.waze.com',
-    },
+/** Cabeceras como las de un navegador visitando el mapa en directo de Waze. */
+export const WAZE_HEADERS: Record<string, string> = {
+  Accept: 'application/json, text/plain, */*',
+  'Accept-Language': 'es-ES,es;q=0.9,en;q=0.8',
+  Referer: 'https://www.waze.com/es/live-map/',
+  'Sec-Fetch-Dest': 'empty',
+  'Sec-Fetch-Mode': 'cors',
+  'Sec-Fetch-Site': 'same-origin',
+};
+
+/** Endpoints alternativos (antiguos) con el mismo formato de respuesta. */
+function legacyUrls(b: BBox): string[] {
+  const q = new URLSearchParams({
+    bottom: b.south.toFixed(5),
+    left: b.west.toFixed(5),
+    right: b.east.toFixed(5),
+    top: b.north.toFixed(5),
+    ma: '200',
+    mj: '200',
+    mu: '20',
+    types: 'alerts,traffic',
   });
-  return parseWaze(data);
+  return [`https://www.waze.com/row-rtserver/web/TGeoRSS?${q}`, `https://www.waze.com/rtserver/web/TGeoRSS?${q}`];
+}
+
+/** Último endpoint que funcionó, para probarlo primero. */
+let preferred = 0;
+
+export async function fetchWaze(b: BBox): Promise<TrafficEvent[]> {
+  const urls = [wazeUrl(b), ...legacyUrls(b)];
+  const order = [preferred, ...urls.keys()].filter((v, i, a) => a.indexOf(v) === i);
+  const errors: string[] = [];
+  for (const i of order) {
+    try {
+      const data = await fetchJson<WazeResponse>(urls[i], { timeoutMs: 12_000, headers: WAZE_HEADERS });
+      preferred = i;
+      return parseWaze(data);
+    } catch (err) {
+      errors.push(errorMessage(err));
+    }
+  }
+  throw new Error(`Waze bloquea las peticiones desde este servidor (${[...new Set(errors)].join(' · ')})`);
 }

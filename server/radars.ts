@@ -9,6 +9,7 @@ import { errorMessage, fetchJson } from './lib/http';
 import { fetchDgtInvive, fetchDgtRadars } from './sources/dgt-radars';
 import { fetchMadrid } from './sources/madrid';
 import { fetchSct } from './sources/sct';
+import { fetchRegional } from './sources/regional';
 
 interface Part {
   radars: Radar[];
@@ -45,6 +46,7 @@ const DIRECT = [
   { key: 'dgt_invive', label: 'DGT · tramos con radar móvil', res: new CachedResource<Part>('dgt_invive', 24 * H, fetchDgtInvive, { persist: true, retryMs: 10 * 60_000 }) },
   { key: 'sct', label: 'Servei Català de Trànsit', res: new CachedResource<Part>('sct', 24 * H, fetchSct, { persist: true, retryMs: 10 * 60_000 }) },
   { key: 'madrid', label: 'Ayuntamiento de Madrid', res: new CachedResource<Part>('madrid', 24 * H, fetchMadrid, { persist: true, retryMs: 10 * 60_000 }) },
+  { key: 'regional', label: 'Euskadi, Navarra y Donostia (requiere IP española)', res: new CachedResource<Part>('regional', 24 * H, fetchRegional, { persist: true, retryMs: 30 * 60_000 }) },
   { key: 'osm', label: 'OpenStreetMap', res: new CachedResource<Part>('osm', 24 * H, fetchOsm, { persist: true, retryMs: 30 * 60_000 }) },
 ];
 
@@ -55,6 +57,7 @@ const FEED_ALIASES: Record<string, string[]> = {
   sct: ['sct', 'sct_remolc'],
   madrid: ['madrid'],
   osm: ['osm'],
+  regional: ['euskadi', 'navarra', 'donostia'],
 };
 
 const feed = new CachedResource<FeedCollection>('feed', 3 * H, fetchFeedRaw, { persist: true, retryMs: 10 * 60_000 });
@@ -98,7 +101,8 @@ export async function getRadarDataset(waitMs = 45_000): Promise<RadarDataset> {
   }
   sources.push({
     key: 'feed',
-    label: 'Radares Anunciados (Euskadi, Navarra, municipios…)',
+    label: 'Radares Anunciados (opcional: radares móviles municipales)',
+    optional: true,
     ok: !!feedVal.value && !feedVal.error,
     stale: feedVal.stale && !!feedVal.value,
     count: feedPart.radars.length + feedPart.stretches.length,
