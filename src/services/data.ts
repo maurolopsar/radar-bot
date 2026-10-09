@@ -71,6 +71,13 @@ export async function refreshRadars(force = false): Promise<void> {
     // Si alguna fuente aún no ha respondido (primer arranque del servidor), reintenta pronto.
     if (failing) setTimeout(() => void refreshRadars(), 3 * 60_000);
   } catch (err) {
+    // Si el servidor responde pero la descarga de radares falla (o tarda), no se
+    // pasa a modo directo: se mantiene la copia guardada y se reintenta.
+    if (await checkServer(true)) {
+      datasetState.value = { loading: false, source: dataset.value ? 'cache' : undefined, error: `Servidor: ${(err as Error).message}` };
+      setTimeout(() => void refreshRadars(), 2 * 60_000);
+      return;
+    }
     serverOk = false;
     await refreshRadarsDirect(err as Error);
   }
@@ -231,9 +238,9 @@ function tick(): void {
         try {
           const r = await api.aircraft(lat, lon, Math.max(s.aircraftRangeKm * 1.5, 25));
           if (r.provider === 'none') {
-            // El servidor no llega a ningún proveedor: se intenta desde el propio móvil.
-            await aircraftDirect(lat, lon, Math.max(s.aircraftRangeKm * 1.5, 25));
-            if (aircraftInfo.value.error) aircraftInfo.value = { error: `Servidor: ${r.error ?? 'sin proveedor'} · Directo: ${aircraftInfo.value.error}` };
+            // Se muestra el motivo real del servidor (desde Safari no se puede consultar directamente).
+            aircraft.value = [];
+            aircraftInfo.value = { error: `Servidor sin proveedor de aeronaves: ${r.error ?? 'desconocido'}` };
             return;
           }
           aircraft.value = r.aircraft;
